@@ -1,12 +1,13 @@
 //! Sends queued observations to Traccar, one at a time and in order.
 
-use std::collections::HashSet;
 use std::sync::Arc;
 use std::time::Duration;
 
 use anyhow::Context;
+use bytes::Bytes;
 use reqwest::header::CONTENT_TYPE;
 use reqwest::{StatusCode, Url};
+use tokio::time::Instant;
 use tracing::{debug, info, warn};
 
 use super::{Observation, Queue};
@@ -15,18 +16,52 @@ use crate::config::TraccarConfig;
 const INITIAL_RETRY_DELAY: Duration = Duration::from_secs(1);
 const MAX_RETRY_DELAY: Duration = Duration::from_secs(60);
 
-/// Devices whose first rejection is logged as a warning; later rejections,
-/// and devices beyond this many, are logged at debug level.
-const MAX_WARNED_DEVICES: usize = 10_000;
-
 pub struct Forwarder {
     client: reqwest::Client,
     url: Url,
     max_attempts: u32,
     queue: Arc<Queue>,
-    warned_devices: HashSet<String>,
+    rejections: RejectionLog,
     /// Whether the last request failed, to log outages once.
     failing: bool,
+}
+
+/// Summarizes rejected reports in at most one warning per interval, so a
+/// broad uplink filter with unregistered stations cannot flood the log.
+#[derive(Default)]
+struct RejectionLog {
+    last_warning: Option<Instant>,
+    /// Rejections since the last warning.
+    count: u64,
+    examples: Vec<String>,
+}
+
+impl RejectionLog {
+    const INTERVAL: Duration = Duration::from_secs(60);
+    const MAX_EXAMPLES: usize = 5;
+
+    fn record(&mut self, device: &str, status: StatusCode) {
+        debug!(device, %status, "Traccar rejected the report");
+        self.count += 1;
+        if self.examples.len() < Self::MAX_EXAMPLES && !self.examples.iter().any(|d| d == device) {
+            self.examples.push(device.to_owned());
+        }
+        let now = Instant::now();
+        if self
+            .last_warning
+            .is_none_or(|last| now.duration_since(last) >= Self::INTERVAL)
+        {
+            warn!(
+                rejected = self.count,
+                devices = self.examples.join(", "),
+                %status,
+                "Traccar rejected reports; the devices are probably unknown or disabled"
+            );
+            self.last_warning = Some(now);
+            self.count = 0;
+            self.examples.clear();
+        }
+    }
 }
 
 enum Outcome {
@@ -57,7 +92,7 @@ impl Forwarder {
             url: Url::parse(&config.url).context("parsing traccar.url")?,
             max_attempts: config.max_attempts,
             queue,
-            warned_devices: HashSet::new(),
+            rejections: RejectionLog::default(),
             failing: false,
         })
     }
@@ -70,7 +105,7 @@ impl Forwarder {
     }
 
     async fn deliver(&mut self, observation: &Observation) {
-        let body = observation.to_form();
+        let body = Bytes::from(observation.to_form());
         let device = observation.device_id.as_str();
         let mut failed_attempts = 0;
         let mut delay = INITIAL_RETRY_DELAY;
@@ -86,7 +121,7 @@ impl Forwarder {
                 }
                 Outcome::Rejected(status) => {
                     self.failing = false;
-                    self.log_rejection(device, status);
+                    self.rejections.record(device, status);
                     return;
                 }
                 Outcome::Failed { sent, reason } => {
@@ -114,7 +149,7 @@ impl Forwarder {
         }
     }
 
-    async fn send(&self, body: String) -> Outcome {
+    async fn send(&self, body: Bytes) -> Outcome {
         let response = self
             .client
             .post(self.url.clone())
@@ -143,21 +178,6 @@ impl Forwarder {
                 sent: true,
                 reason: format!("HTTP {status}"),
             }
-        }
-    }
-
-    fn log_rejection(&mut self, device: &str, status: StatusCode) {
-        let first = self.warned_devices.len() < MAX_WARNED_DEVICES
-            && self.warned_devices.insert(device.to_owned());
-        if first {
-            warn!(
-                device,
-                %status,
-                "Traccar rejected the report; the device is probably unknown or disabled \
-                 (further rejections for it are logged at debug level)"
-            );
-        } else {
-            debug!(device, %status, "Traccar rejected the report");
         }
     }
 }

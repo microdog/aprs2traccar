@@ -94,11 +94,15 @@ async fn run_session(
         },
     };
     let verified = login.is_verified();
+    let software = login
+        .software
+        .as_ref()
+        .map(|(name, version)| format!("{name} {version}"));
     info!(
         %peer,
         login = login.call,
         verified,
-        software = ?login.software,
+        software,
         "client logged in"
     );
 
