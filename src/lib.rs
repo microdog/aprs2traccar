@@ -3,7 +3,11 @@
 
 pub mod app;
 pub mod aprs;
+pub mod aprsis;
 pub mod config;
+pub mod dedupe;
+pub mod ingest;
+pub mod traccar;
 
 /// Software name and version announced to APRS-IS peers.
 pub const SOFTWARE_NAME: &str = env!("CARGO_PKG_NAME");
