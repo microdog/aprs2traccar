@@ -1,0 +1,34 @@
+# aprs2traccar configuration. Every key is optional; the values shown are
+# the defaults unless marked otherwise. See README.md for details.
+
+[server]
+# APRS-IS listener for local clients. Expose it only on a trusted network:
+# APRS-IS passcodes are derived from the callsign and are not secret.
+listen = "0.0.0.0:14580"
+# Identity sent in "# logresp" and keepalive lines; clients may not use it.
+server_call = "APRS2TRC"
+# Logins allowed to connect (case-insensitive). Empty allows any login.
+# Example, not a default:
+# allowed_logins = ["N0CALL-10", "N0CALL-7"]
+allowed_logins = []
+login_timeout_secs = 30
+keepalive_secs = 20
+client_timeout_secs = 172800
+
+[traccar]
+# Traccar OsmAnd protocol endpoint (port 5055 by default). No query string.
+url = "http://127.0.0.1:5055/"
+request_timeout_secs = 10
+queue_capacity = 10000
+max_attempts = 5
+shutdown_grace_secs = 10
+
+[uplink]
+# Pull a filtered feed from APRS-IS into Traccar. Receive-only: the bridge
+# logs in unverified and never sends packets to APRS-IS.
+enabled = false
+server = "rotate.aprs2.net:14580"
+# Required when enabled (examples, not defaults):
+# callsign = "N0CALL-TR"
+# filter = "b/N0CALL*"
+idle_timeout_secs = 120

@@ -250,6 +250,13 @@ mod tests {
     }
 
     #[test]
+    fn example_config_is_valid_and_matches_defaults() {
+        let example = Config::parse(include_str!("../aprs2traccar.example.toml")).unwrap();
+        let defaults = Config::default();
+        assert_eq!(format!("{example:?}"), format!("{defaults:?}"));
+    }
+
+    #[test]
     fn rejects_unknown_keys() {
         let error = Config::parse("[server]\nlisten_addr = \"0.0.0.0:1\"\n").unwrap_err();
         assert!(format!("{error:#}").contains("listen_addr"), "{error:#}");

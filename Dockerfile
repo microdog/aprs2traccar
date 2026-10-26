@@ -1,0 +1,16 @@
+FROM rust:1.99.1-slim-trixie AS build
+WORKDIR /src
+COPY Cargo.toml Cargo.lock ./
+COPY src ./src
+RUN cargo build --release --locked
+
+FROM debian:trixie-slim
+# CA roots for an https:// Traccar URL.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+COPY --from=build /src/target/release/aprs2traccar /usr/local/bin/aprs2traccar
+USER 10001:10001
+EXPOSE 14580
+ENTRYPOINT ["aprs2traccar"]
+CMD ["--config", "/etc/aprs2traccar/config.toml"]

@@ -1,7 +1,7 @@
 # Codebase Map
 
 Single crate: a library (`src/lib.rs`) holding all logic and a thin binary
-(`src/main.rs`). End-to-end tests live in `tests/bridge.rs`.
+(`src/main.rs`).
 
 ## Files
 
@@ -29,6 +29,10 @@ Single crate: a library (`src/lib.rs`) holding all logic and a thin binary
   `/A=`, DAO, ambiguity (`Position`, `parse`).
 - `src/aprs/mic_e.rs` — Mic-E decoding and message codes (`decode`, `MicEMessage`).
 - `src/aprs/time.rs` — report timestamps and resolution (`PacketTime::resolve`).
+- `tests/bridge.rs` — end-to-end tests with fake Traccar and APRS-IS peers
+  (`FakeTraccar`, `Bridge`, `Client`).
+- `Dockerfile` — container image; `aprs2traccar.example.toml` — annotated
+  configuration, checked against the defaults by a `config` test.
 
 ## By concern
 
@@ -42,3 +46,5 @@ Single crate: a library (`src/lib.rs`) holding all logic and a thin binary
   `src/aprsis/server.rs`, `src/aprsis/uplink.rs`.
 - Delivery guarantees (retries, drops, shutdown flush): `src/traccar/forwarder.rs`,
   `src/traccar/queue.rs`, `src/app.rs`.
+- Log setup and rate-limited warnings: `src/main.rs`, `RejectionLog` in
+  `src/traccar/forwarder.rs`, `Queue::push`.
