@@ -10,9 +10,6 @@ use serde::Deserialize;
 
 use crate::aprs::callsign;
 
-/// Minimum length of a login callsign without SSID, per APRS-IS rules.
-pub const LOGIN_MIN_BASE_LEN: usize = 3;
-
 #[derive(Debug, Clone, Default, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct Config {
@@ -165,13 +162,13 @@ impl Config {
     pub fn validate(&self) -> anyhow::Result<()> {
         let server = &self.server;
         ensure!(
-            callsign::is_valid(&server.server_call, LOGIN_MIN_BASE_LEN),
+            callsign::is_valid(&server.server_call),
             "server.server_call {:?} is not a valid callsign-SSID",
             server.server_call
         );
         for login in &server.allowed_logins {
             ensure!(
-                callsign::is_valid(login, LOGIN_MIN_BASE_LEN),
+                callsign::is_valid(login),
                 "server.allowed_logins entry {login:?} is not a valid callsign-SSID"
             );
         }
@@ -221,7 +218,7 @@ impl Config {
                 _ => bail!("uplink.server {:?} must be host:port", uplink.server),
             }
             ensure!(
-                callsign::is_valid(&uplink.callsign, LOGIN_MIN_BASE_LEN),
+                callsign::is_valid(&uplink.callsign),
                 "uplink.callsign {:?} is not a valid callsign-SSID",
                 uplink.callsign
             );

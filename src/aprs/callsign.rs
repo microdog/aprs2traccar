@@ -1,32 +1,55 @@
-//! APRS-IS callsign-SSID rules.
+//! Callsign rules as enforced by aprsc, the de facto APRS-IS server.
 
 /// Maximum length of a callsign-SSID, including the hyphen and SSID.
 const MAX_LEN: usize = 9;
 
-/// Returns whether `call` is a valid APRS-IS callsign-SSID.
-///
-/// The base callsign is ASCII alphanumeric with at least `min_base_len`
-/// characters, optionally followed by a hyphen and a one- or two-character
-/// alphanumeric SSID, at most nine characters in total.
-pub fn is_valid(call: &str, min_base_len: usize) -> bool {
-    if call.len() > MAX_LEN {
+/// Length of a hex IPv6 server identifier allowed after a q construct.
+const IPV6_ID_LEN: usize = 32;
+
+/// Returns whether `call` is a valid source/destination callsign or login:
+/// 1–9 characters, alphanumeric, optionally followed by `-` and at least one
+/// alphanumeric character.
+pub fn is_valid(call: &str) -> bool {
+    if call.is_empty() || call.len() > MAX_LEN {
         return false;
     }
-    let (base, ssid) = match call.split_once('-') {
+    let (base, ssid) = split(call);
+    base.bytes().all(|b| b.is_ascii_alphanumeric())
+        && ssid
+            .is_none_or(|ssid| !ssid.is_empty() && ssid.bytes().all(|b| b.is_ascii_alphanumeric()))
+}
+
+/// Returns whether `element` is a valid digipeater path element: an
+/// optional trailing `*`, at most 9 characters (or a 32-character server ID
+/// after a q construct) and an SSID of one or two characters not starting
+/// with `0`.
+pub fn is_valid_path_element(element: &str, after_q: bool) -> bool {
+    let call = match element.strip_suffix('*') {
+        Some(call) if !call.is_empty() => call,
+        _ => element,
+    };
+    if call.is_empty() || (call.len() > MAX_LEN && !(after_q && call.len() == IPV6_ID_LEN)) {
+        return false;
+    }
+    let (base, ssid) = split(call);
+    base.bytes().all(|b| b.is_ascii_alphanumeric())
+        && ssid.is_none_or(|ssid| {
+            (1..=2).contains(&ssid.len())
+                && !ssid.starts_with('0')
+                && ssid.bytes().all(|b| b.is_ascii_alphanumeric())
+        })
+}
+
+fn split(call: &str) -> (&str, Option<&str>) {
+    match call.split_once('-') {
         Some((base, ssid)) => (base, Some(ssid)),
         None => (call, None),
-    };
-    if base.len() < min_base_len.max(1) || !base.bytes().all(|b| b.is_ascii_alphanumeric()) {
-        return false;
     }
-    ssid.is_none_or(|ssid| {
-        (1..=2).contains(&ssid.len()) && ssid.bytes().all(|b| b.is_ascii_alphanumeric())
-    })
 }
 
 /// Returns the callsign without its SSID.
 pub fn base(call: &str) -> &str {
-    call.split_once('-').map_or(call, |(base, _)| base)
+    split(call).0
 }
 
 /// Normalizes a station callsign into a stable device identifier:
@@ -41,24 +64,61 @@ mod tests {
     use super::*;
 
     #[test]
-    fn accepts_callsigns_with_and_without_ssid() {
-        assert!(is_valid("N0CALL", 3));
-        assert!(is_valid("N0CALL-9", 3));
-        assert!(is_valid("N0CALL-AB", 3));
-        assert!(is_valid("WIDE1-1", 1));
-        assert!(is_valid("qAR", 1));
+    fn accepts_aprs_is_callsigns() {
+        for call in [
+            "N0CALL",
+            "N0CALL-9",
+            "N0CALL-AB",
+            "K1A",
+            "APRS",
+            "ER-PI3GOE",
+            "DEMO-006",
+        ] {
+            assert!(is_valid(call), "{call}");
+        }
     }
 
     #[test]
     fn rejects_malformed_callsigns() {
-        assert!(!is_valid("", 1));
-        assert!(!is_valid("N0", 3));
-        assert!(!is_valid("N0CALL-", 3));
-        assert!(!is_valid("N0CALL-123", 3));
-        assert!(!is_valid("N0C-1-2", 3));
-        assert!(!is_valid("N0CALLX-9X", 3), "longer than nine characters");
-        assert!(!is_valid("N0 CALL", 3));
-        assert!(!is_valid("N0CALL*", 3));
+        for call in [
+            "",
+            "N0CALL-",
+            "N0C-1-2",
+            "N0CALLX-9X",
+            "N0 CALL",
+            "N0CALL*",
+            "ÄBC",
+        ] {
+            assert!(!is_valid(call), "{call}");
+        }
+    }
+
+    #[test]
+    fn path_elements_follow_digipeater_rules() {
+        for element in [
+            "WIDE1-1",
+            "WIDE1-1*",
+            "TCPIP*",
+            "qAR",
+            "T2TEST",
+            "N0CALL-15",
+        ] {
+            assert!(is_valid_path_element(element, false), "{element}");
+        }
+        for element in [
+            "",
+            "*",
+            "WIDE1-1**",
+            "WIDE1-01",
+            "N0CALL-123",
+            "ER-PI3GOE",
+            "TOOLONGCALL",
+        ] {
+            assert!(!is_valid_path_element(element, false), "{element}");
+        }
+        let ipv6_id = "20010DB8000000000000000000000001";
+        assert!(is_valid_path_element(ipv6_id, true));
+        assert!(!is_valid_path_element(ipv6_id, false));
     }
 
     #[test]
