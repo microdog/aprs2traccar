@@ -208,3 +208,12 @@ clients.
 The pre-commit hooks ([`.pre-commit-config.yaml`](.pre-commit-config.yaml))
 run `cargo fmt`, `cargo clippy` (which also fails when `Cargo.lock` is out of
 date with `Cargo.toml`), markdownlint and generic file checks.
+
+## License
+
+Copyright (C) 2026 Microdog
+
+This program is free software: you can redistribute it and/or modify it under
+the terms of the GNU Affero General Public License as published by the Free
+Software Foundation, either version 3 of the License, or (at your option) any
+later version. See [`LICENSE`](LICENSE) for the full text.
