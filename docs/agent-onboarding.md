@@ -34,7 +34,7 @@ reports to Traccar over the OsmAnd HTTP protocol.
 ## Documentation index
 
 | Question | Source |
-|---|---|
+| --- | --- |
 | Setup, commands, configuration, operations | [`README.md`](../README.md) |
 | Forwarded data, Traccar setup, delivery semantics | [`README.md`](../README.md) |
 | Where code for a concern lives | [`docs/codebase-map.md`](codebase-map.md) |

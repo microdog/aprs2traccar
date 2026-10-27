@@ -53,7 +53,7 @@ TOML with three optional sections; unknown keys are rejected.
 [`aprs2traccar.example.toml`](aprs2traccar.example.toml) lists every key.
 
 | Key | Default | Meaning |
-|---|---|---|
+| --- | --- | --- |
 | `server.listen` | `0.0.0.0:14580` | APRS-IS listener address |
 | `server.server_call` | `APRS2TRC` | Server identity in `# logresp` and keepalive lines |
 | `server.allowed_logins` | `[]` | Logins allowed to connect (case-insensitive); empty allows any |
@@ -91,7 +91,7 @@ TOML with three optional sections; unknown keys are rejected.
 Clients log in with their callsign and its APRS-IS passcode. Direwolf
 (`direwolf.conf`, 13023 being the passcode for N0CALL):
 
-```
+```text
 IGSERVER bridge.example.lan:14580
 IGLOGIN N0CALL-10 13023
 ```
@@ -129,7 +129,7 @@ forwarded; weather stations' positions are, without the weather data.
 OsmAnd parameters:
 
 | Parameter | Value |
-|---|---|
+| --- | --- |
 | `id` | Source callsign with SSID, uppercased |
 | `timestamp` | Packet timestamp (`z` and `h` formats, resolved near the receive time), else the receive time |
 | `lat`, `lon` | Position; omitted for status reports and 0°,0° positions |
@@ -141,7 +141,7 @@ OsmAnd parameters:
 Attributes stored with the Traccar position:
 
 | Attribute | Value |
-|---|---|
+| --- | --- |
 | `aprsSymbol` | Symbol table and code, e.g. `/>` |
 | `aprsComment` | Position comment |
 | `aprsStatus` | Status text |
@@ -195,10 +195,16 @@ clients.
 ## Development
 
 | Task | Command |
-|---|---|
+| --- | --- |
 | Build | `cargo build` |
 | Test | `cargo test` |
 | Lint | `cargo clippy --all-targets -- -D warnings` |
 | Format | `cargo fmt` (check: `cargo fmt --check`) |
 | Type-check | `cargo check --all-targets` |
 | Container image | `docker build -t aprs2traccar .` |
+| Install Git hooks | `uvx pre-commit install` |
+| All pre-commit checks | `uvx pre-commit run --all-files` |
+
+The pre-commit hooks ([`.pre-commit-config.yaml`](.pre-commit-config.yaml))
+run `cargo fmt`, `cargo clippy` (which also fails when `Cargo.lock` is out of
+date with `Cargo.toml`), markdownlint and generic file checks.
